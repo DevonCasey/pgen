@@ -1,7 +1,12 @@
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, BufReader};
 use rand::Rng;
 use clap::Parser;
+use arboard::Clipboard;
+use std::{thread, time::Duration};
+
+// Include the fallback wordlist that's embedded in the binary
+static DEFAULT_WORDLIST: &str = include_str!("../data/wordlist.txt");
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -10,7 +15,7 @@ struct Args {
     #[arg(short = 'n', default_value_t = 4)]
     number: usize,
     /// Delimiter between words
-    #[arg(short = 'd', default_value = "")]
+    #[arg(short = 'd', default_value = "-")]
     delimiter: String,
 }
 
@@ -20,28 +25,33 @@ fn build_password(count: usize, delimiter: &str) -> io::Result<String> {
         "data/wordlist.txt",
         "/usr/share/pgen/wordlist.txt",
         "/etc/pgen/wordlist.txt",
+        "./wordlist.txt"
     ];
 
-    let mut file = None;
+    // Try to open the wordlist from potential locations
+    let mut words = Vec::new();
     for path in &wordlist_paths {
-        if let Ok(f) = File::open(path) {
-            file = Some(f);
+        if let Ok(file) = File::open(path) {
+            let reader = BufReader::new(file);
+            for line in reader.lines() {
+                if let Ok(word) = line {
+                    let trimmed = word.trim();
+                    if !trimmed.is_empty() {
+                        words.push(trimmed.to_string());
+                    }
+                }
+            }
             break;
         }
     }
-
-    let file = file.ok_or_else(|| {
-        io::Error::new(io::ErrorKind::NotFound, "Wordlist file not found")
-    })?;
-
-    let words: Vec<String> = io::BufReader::new(file)
-        .lines()
-        .filter_map(|line| line.ok())
-        .filter(|line| !line.trim().is_empty())
-        .collect();
-
+    // If no external wordlist found, use the embedded one
     if words.is_empty() {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "No words found in wordlist"));
+        words = DEFAULT_WORDLIST
+            .lines()
+            .map(|line| line.trim())
+            .filter(|line| !line.is_empty())
+            .map(|line| line.to_string())
+            .collect();
     }
 
     let mut rng = rand::rng();
@@ -67,13 +77,31 @@ fn build_password(count: usize, delimiter: &str) -> io::Result<String> {
     Ok(selected.join(delimiter))
 }
 
-fn main() {
-    let args = Args::parse();
-    match build_password(args.number, &args.delimiter) {
-        Ok(result) => println!("{}", result),
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
+fn copy_to_clipboard_with_timeout(password: String, timeout_secs: u64) -> io::Result<()> {
+    // Initialize clipboard
+    let mut clipboard = Clipboard::new()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+    // Copy password to clipboard
+    clipboard.set_text(password)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+    println!("Password copied to clipboard. The clipboard will clear in {} seconds.", timeout_secs);
+
+    // Spawn a thread to clear the clipboard after timeout
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(timeout_secs));
+        if let Ok(mut clipboard) = Clipboard::new() {
+            let _ = clipboard.set_text("");
         }
-    }
+    });
+
+    Ok(())
+}
+
+fn main() -> io::Result<()> {
+    let args = Args::parse();
+    let password = build_password(args.number, &args.delimiter)?;
+    copy_to_clipboard_with_timeout(password, 45)?;
+    Ok(())
 }

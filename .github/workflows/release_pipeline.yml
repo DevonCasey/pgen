@@ -1,0 +1,105 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+
+jobs:
+  build-rpm:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf update -y
+          dnf install -y git curl gcc rpm-build rpm-devel libtool make libxcb-devel
+
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source ~/.cargo/env
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install cargo-generate-rpm
+        run: |
+          source ~/.cargo/env
+          cargo install cargo-generate-rpm
+
+      - name: Build release
+        run: |
+          source ~/.cargo/env
+          cargo build --release
+
+      - name: Generate RPM
+        run: |
+          source ~/.cargo/env
+          cargo generate-rpm
+
+      - name: Find RPM file
+        id: find_rpm
+        run: |
+          RPM_FILE=$(find target/generate-rpm -name "*.rpm" | head -1)
+          echo "rpm_file=$RPM_FILE" >> $GITHUB_OUTPUT
+          echo "rpm_name=$(basename $RPM_FILE)" >> $GITHUB_OUTPUT
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package
+          path: ${{ steps.find_rpm.outputs.rpm_file }}
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Windows executable
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Find exe file
+        id: find_exe
+        shell: bash
+        run: |
+          EXE_FILE=$(find target/x86_64-pc-windows-msvc/release -name "*.exe" | head -1)
+          echo "exe_file=$EXE_FILE" >> $GITHUB_OUTPUT
+          echo "exe_name=$(basename $EXE_FILE)" >> $GITHUB_OUTPUT
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-executable
+          path: ${{ steps.find_exe.outputs.exe_file }}
+
+  release:
+    needs: [build-rpm, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download RPM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package
+          path: ./artifacts
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-executable
+          path: ./artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./artifacts/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
