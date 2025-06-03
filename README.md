@@ -6,10 +6,10 @@ digit randomly for added complexity.
 
 Usage:
 ```
-pgen
+> pgen
 fleasLeftdevourer2Slyly
 ```
 ```
-pgen -n 5 -d "-"
+> pgen -n 5 -d "-"
 our-Director-africa8-Rinds
 ```
