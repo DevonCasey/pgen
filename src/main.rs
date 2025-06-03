@@ -7,10 +7,10 @@ use clap::Parser;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Number of words to generate
-    #[arg(short = 'n', default_value_t = 3)]
+    #[arg(short = 'n', default_value_t = 4)]
     number: usize,
     /// Delimiter between words
-    #[arg(short = 'd', default_value = " ")]
+    #[arg(short = 'd', default_value = "")]
     delimiter: String,
 }
 

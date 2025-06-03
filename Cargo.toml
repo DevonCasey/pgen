@@ -1,8 +1,8 @@
 [package]
 name = "pgen"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
-authors = ["Devon Casey <devon.s.casey@gmail.com>"]
+authors = ["Devon Casey <me@devoncasey.com>"]
 description = "A secure password generator using a list of words like that one xkcd comic."
 license = "MIT"
 repository = "https://github.com/DevonCasey/pgen"
