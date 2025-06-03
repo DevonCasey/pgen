@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-rpm:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    steps:
+    - name: Install dependencies
+      run: |
+        dnf update -y
+        dnf install -y git curl gcc rpm-build rpm-devel libtool make libxcb-devel
+    
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source ~/.cargo/env
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    
+    - name: Install cargo-generate-rpm
+      run: |
+        source ~/.cargo/env
+        cargo install cargo-generate-rpm
+    
+    - name: Build release
+      run: |
+        source ~/.cargo/env
+        cargo build --release
+    
+    - name: Generate RPM
+      run: |
+        source ~/.cargo/env
+        cargo generate-rpm
+    
+    - name: Find RPM file
+      id: find_rpm
+      run: |
+        RPM_FILE=$(find target/generate-rpm -name "*.rpm" | head -1)
+        echo "rpm_file=$RPM_FILE" >> $GITHUB_OUTPUT
+        echo "rpm_name=$(basename $RPM_FILE)" >> $GITHUB_OUTPUT
+    
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ steps.find_rpm.outputs.rpm_file }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
