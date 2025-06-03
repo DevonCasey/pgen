@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use rand::Rng;
 use clap::Parser;
+use arboard::Clipboard;
+use std::{thread, time::Duration};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -41,7 +43,7 @@ fn build_password(count: usize, delimiter: &str) -> io::Result<String> {
         .collect();
 
     if words.is_empty() {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "No words found in wordlist"));
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "No words found in the wordlist"));
     }
 
     let mut rng = rand::rng();
@@ -67,13 +69,31 @@ fn build_password(count: usize, delimiter: &str) -> io::Result<String> {
     Ok(selected.join(delimiter))
 }
 
-fn main() {
-    let args = Args::parse();
-    match build_password(args.number, &args.delimiter) {
-        Ok(result) => println!("{}", result),
-        Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
+fn copy_to_clipboard_with_timeout(password: String, timeout_secs: u64) -> io::Result<()> {
+    // Initialize clipboard
+    let mut clipboard = Clipboard::new()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+    // Copy password to clipboard
+    clipboard.set_text(password)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+
+    println!("Password copied to clipboard. The clipboard will clear in {} seconds.", timeout_secs);
+
+    // Spawn a thread to clear the clipboard after timeout
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(timeout_secs));
+        if let Ok(mut clipboard) = Clipboard::new() {
+            let _ = clipboard.set_text("");
         }
-    }
+    });
+
+    Ok(())
+}
+
+
+fn main() -> io::Result<()> {
+    let password = build_password(4, "-")?;
+    copy_to_clipboard_with_timeout(password, 45)?;
+    Ok(())
 }

@@ -12,8 +12,10 @@ categories = ["command-line-utilities"]
 [dependencies]
 rand = "0.9.1"
 clap = { version = "4.0", features = ["derive"] }
+arboard = "3.3"
 
 [package.metadata.generate-rpm]
+signature = { key_id = "RPM-GPG-KEY-DEVON-CASEY" }
 license = "MIT"
 summary = "A secure password generator using a list of words like that one xkcd comic."
 assets = [
@@ -24,3 +26,4 @@ assets = [
 
 [package.metadata.generate-rpm.requires]
 glibc = "*"
+libxcb = "*"
