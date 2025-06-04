@@ -1,3 +1,5 @@
 .idea
+.config
+.cache
 /target
 documentation.md
