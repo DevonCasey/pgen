@@ -26,4 +26,3 @@ assets = [
 
 [package.metadata.generate-rpm.requires]
 glibc = "*"
-libxcb = "*"
