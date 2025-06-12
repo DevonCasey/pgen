@@ -40,10 +40,17 @@ jobs:
           source ~/.cargo/env
           cargo generate-rpm
 
+      - name: Rename RPM with version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d '"' -f2)
+          RPM_FILE=$(find target/generate-rpm -name "*.rpm" | head -1)
+          NEW_NAME="pgen-${VERSION}.rpm"
+          mv "$RPM_FILE" "target/generate-rpm/$NEW_NAME"
+
       - name: Find RPM file
         id: find_rpm
         run: |
-          RPM_FILE=$(find target/generate-rpm -name "*.rpm" | head -1)
+          RPM_FILE=$(find target/generate-rpm -name "pgen-*.rpm" | head -1)
           echo "rpm_file=$RPM_FILE" >> $GITHUB_OUTPUT
           echo "rpm_name=$(basename $RPM_FILE)" >> $GITHUB_OUTPUT
 
