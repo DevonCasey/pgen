@@ -4885,9 +4885,7 @@ gwen
 gym
 gymnast
 gyms
-gyp
 gypsum
-gypsy
 gyration
 gyro
 habit
