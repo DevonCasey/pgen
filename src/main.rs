@@ -44,6 +44,7 @@ fn build_password(count: usize, delimiter: &str) -> io::Result<String> {
             break;
         }
     }
+
     // If no external wordlist found, use the embedded one
     if words.is_empty() {
         words = DEFAULT_WORDLIST
@@ -60,6 +61,7 @@ fn build_password(count: usize, delimiter: &str) -> io::Result<String> {
     let selected: Vec<String> = (0..count)
         .map(|i| {
             let mut word = words[rng.random_range(0..words.len())].clone();
+            
             // Randomly capitalize (50% chance)
             if rng.random_bool(0.5) {
                 if let Some(first_char) = word.chars().next() {
@@ -67,9 +69,11 @@ fn build_password(count: usize, delimiter: &str) -> io::Result<String> {
                     word = capitalized + &word[first_char.len_utf8()..];
                 }
             }
+            
             if i == digit_position {
                 word.push_str(&rng.random_range(0..10).to_string());
             }
+            
             word
         })
         .collect();
@@ -81,27 +85,30 @@ fn copy_to_clipboard_with_timeout(password: String, timeout_secs: u64) -> io::Re
     // Initialize clipboard
     let mut clipboard = Clipboard::new()
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-
+    
     // Copy password to clipboard
     clipboard.set_text(password)
         .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-
+    
     println!("Password copied to clipboard. The clipboard will clear in {} seconds.", timeout_secs);
-
-    // Spawn a thread to clear the clipboard after timeout
-    thread::spawn(move || {
-        thread::sleep(Duration::from_secs(timeout_secs));
-        if let Ok(mut clipboard) = Clipboard::new() {
-            let _ = clipboard.set_text("");
-        }
-    });
-
+    
+    // Keep the main thread alive to maintain clipboard content
+    thread::sleep(Duration::from_secs(timeout_secs));
+    
+    // Clear the clipboard
+    if let Ok(mut clipboard) = Clipboard::new() {
+        let _ = clipboard.set_text("");
+        println!("Clipboard cleared.");
+    }
+    
     Ok(())
 }
 
 fn main() -> io::Result<()> {
     let args = Args::parse();
     let password = build_password(args.number, &args.delimiter)?;
+    
     copy_to_clipboard_with_timeout(password, 45)?;
+    
     Ok(())
 }

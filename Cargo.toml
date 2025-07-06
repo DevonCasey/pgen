@@ -1,6 +1,6 @@
 [package]
 name = "pgen"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2024"
 authors = ["Devon Casey <me@devoncasey.com>"]
 description = "A secure password generator using a list of words like that one xkcd comic."
